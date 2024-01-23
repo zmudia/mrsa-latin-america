@@ -1,0 +1,104 @@
+---
+title: "Health Economic Analysis"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = T,
+                      warning = F,
+                      message = F,
+                      eval = T,
+                      dpi = 300)
+options(width = 10)
+```
+
+# Load necessary package and data
+
+```{r load package}
+library(tidyverse) 
+library(magrittr) # pipe use
+library(gtsummary) # for data summary
+library(mice) # for missing data checking and multiple imputation
+
+mrsa_data <- readRDS("mrsa_data.rds")
+```
+
+# Model Structure
+
+![Figure 1. Model structure](/Users/zmudia/Documents/R Data Analysis/MRSA Latin America/Model Structure.jpg)
+
+Parameters in this model is derived from the regression coefficient
+
+# Descriptive of the data
+The data contain 896 observations and 34 variables with the exposure of having Methycillin-sensitivie Staphylococcus aureus (MSSA) or Methycillin-resistant Staphylococcus aureus (MRSA). The outcome is either hospital discharge, death at the hospital, or censor (unknown outcome)
+
+As logistic regresssion is used for data analysis to obtain probabilities, patients with unknown outcome or censored will be excluded from analysis. Furthermore, patients with missing data will also be excluded
+
+## Check missing data and patients with censor outcome
+
+```{r}
+# check missing data
+mice::md.pattern(mrsa_data)
+
+# check censor outcome
+mrsa_data %>% count(event3) # variable name of the outcome
+
+# check if patients with censor outcome the same as missing data
+mrsa_data %>% filter(is.na(icu.admission.group) | event3 == "censor") %>% count(id, event3, icu.admission.group)
+```
+
+Patients with missing data have discharge outcome. There are 13 patients with censor outcome and 3 missing data in ICU admission group, total 16 patients will be excluded. 
+
+```{r}
+mrsa_he <- na.omit(mrsa_data) %>% filter(event3 != "censor")
+
+```
+
+## Descriptive analysis
+There are 880 observations now in the data mrsa_he. 
+
+```{r data summary}
+mrsa_he %>% 
+   select(event.death, age, a1.gender, d1.prev.ab, c23.prev.hospital, e7.surgical.procedure, charlson, b3.bacteremia.source, place.acquisition2, e1.mech.ventilation, cvc.regroup, e2.parenteral.nutrition, e3.dialysis, prosthetic.device, e10.arterial.line, e10.iv.cath, e4.urinary.cath, e15.sepsis, icu.admission.group, high.pitt) %>%
+  tbl_summary(label = list(event.death ~ "Mortality", 
+                           age ~ "Age",
+                           a1.gender ~ "Gender",
+                           d1.prev.ab ~ "Antibiotic therapy before blood sampling",
+                           c23.prev.hospital ~ "Previous hospitalisation",
+                           e7.surgical.procedure ~ "Surgical procedure before blood sampling",
+                           charlson ~ "Charlson comorbidity index",
+                           b3.bacteremia.source ~ "Source of bacteremia",
+                           place.acquisition2 ~ "Place of acquisition",
+                           e1.mech.ventilation ~ "Intubation",
+                           cvc.regroup ~ "Central venous catheter",
+                           e2.parenteral.nutrition ~ "Nasogastric tube",
+                           e3.dialysis ~ "Dialysis",
+                           prosthetic.device ~ "Prosthethic device",
+                           e10.arterial.line ~ "Arterial line",
+                           e10.iv.cath ~ "Peripheral intravenous line",
+                           e4.urinary.cath ~ "Urinary catheter",
+                           e15.sepsis ~ "Severity of sepsis",
+                           icu.admission.group ~ "ICU admission",
+                           high.pitt ~ "Pitt score group"),
+              type = list(c(age, charlson) ~ "continuous",
+                          c(a1.gender, d1.prev.ab, c23.prev.hospital, e7.surgical.procedure, b3.bacteremia.source, place.acquisition2, e1.mech.ventilation, cvc.regroup, e2.parenteral.nutrition, e3.dialysis, prosthetic.device, e10.arterial.line, e10.iv.cath, e4.urinary.cath, e15.sepsis, icu.admission.group, high.pitt) ~ "categorical"),
+              value = list(c(a1.gender, d1.prev.ab, c23.prev.hospital, e7.surgical.procedure, b3.bacteremia.source, place.acquisition2, e1.mech.ventilation, cvc.regroup, e2.parenteral.nutrition, e3.dialysis, prosthetic.device, e10.arterial.line, e10.iv.cath, e4.urinary.cath, icu.admission.group, e15.sepsis, high.pitt) ~ "level to show"),
+              statistic = list(all_continuous() ~ "{mean}±({sd})",
+                               all_categorical() ~ "{n} ({p}%)"),
+              digits = list(all_continuous() ~ 1,
+                            all_categorical() ~ c(0,1)),
+              missing = "ifany",
+              missing_text = "Missing",
+              percent = "column") %>%
+  modify_footnote(all_stat_cols() ~ "N(%) or Mean(SD)") %>%
+   modify_caption("**Baseline characteristic**")
+```
+
+## Probabilities
+Logistic regression with random effect is used to obtain probabilities. Random effect is used to take into account hospital cluster effect
+
+```{r}
+
+
+```
